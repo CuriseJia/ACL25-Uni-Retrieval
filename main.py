@@ -31,8 +31,8 @@ def parse_args():
 
     # model args
     parser.add_argument('--prompt', type=str, default='ShallowPrompt')
-    parser.add_argument('--n_prompts', type=int, default=4)
-    parser.add_argument('--prompt_dim', type=int, default=768)
+    parser.add_argument('--n_prompts', type=int, default=3)
+    parser.add_argument('--prompt_dim', type=int, default=50176)
 
     # optimizer args
     parser.add_argument('--clip_ln_lr', type=float, default=1e-4)
@@ -51,17 +51,18 @@ def train(args, model, device, dataloader, optimizer):
         if args.distributed:
             dataloader.sampler.set_epoch(epoch)
 
-        for (image, long_caption, negative_feature) in enumerate(tqdm(dataloader)):
-            image = model.pre_process_train(image).unsqueeze(0).to(device, non_blocking=True)
-            long_caption = model.tokenizer(long_caption).to(device, non_blocking=True)
-            negative_feature = negative_feature.to(device, non_blocking=True)
+        for data in enumerate(tqdm(dataloader)):
+            # print(data)
+            image = data[1][0].to(device, non_blocking=True)
+            long_caption = model.module.tokenizer(data[1][1]).to(device, non_blocking=True)
+            negative_feature = data[1][2].to(device, non_blocking=True)
 
             image_feature = model(image, dtype='image')
             text_feature = model(long_caption, dtype='text')
 
-            loss = model.triplet_loss(image_feature, text_feature, negative_feature)
+            loss = model.module.triplet_loss(image_feature, text_feature, negative_feature)
 
-            print("loss: {:.6f}".format(loss))
+            # print("loss: {:.6f}".format(loss))
 
             optimizer.zero_grad()
             loss.backward()
@@ -69,7 +70,7 @@ def train(args, model, device, dataloader, optimizer):
 
         if is_main_process():
             if loss<best_loss:
-                save_obj = model_without_ddp.state_dict()
+                save_obj = model.module.state_dict()
                 torch.save(save_obj, os.path.join(args.output_dir, 'epoch_{}.path'.format(epoch)))
 
 
@@ -87,7 +88,7 @@ if __name__ == "__main__":
 
     model = ShallowPromptTransformer(args)
     model = model.to(device)
-    model_without_ddp = model
+    # model_without_ddp = model
 
     train_dataset = OriginalLongDataset(args.json_path, model.pre_process_train)
 
@@ -96,8 +97,8 @@ if __name__ == "__main__":
             {'params': [model.img_prompt], 'lr': args.prompt_lr}])
 
     if args.distributed:
-        model = torch.nn.parallel.DistributedDataParallel(model, device_ids=[args.gpu])
-        model_without_ddp = model.module 
+        model = torch.nn.parallel.DistributedDataParallel(model, device_ids=[args.gpu], find_unused_parameters=True)
+        # model_without_ddp = model.module 
         num_tasks = get_world_size()
         global_rank = get_rank()          
         sampler = torch.utils.data.DistributedSampler(train_dataset, num_replicas=num_tasks, rank=global_rank, shuffle=True)
