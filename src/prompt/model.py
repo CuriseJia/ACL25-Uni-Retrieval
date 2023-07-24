@@ -38,34 +38,12 @@ class ShallowPromptTransformer(nn.Module):
     def forward(self, data, dtype='image'):
         if dtype == 'image': 
             feat = self.openclip.encode_image(
-                data, self.img_prompt.expand(data.shape[0], -1, -1)
+                # torch.cat((data[:, :1, :], self.img_prompt.expand(data.shape[0], -1, -1), data[:, 1:,]), dim=1)
+                # torch.cat((self.img_prompt.expand(data.shape[0], -1, -1).view(
+                #     data.shape[0],data.shape[1],data.shape[2],data.shape[3]), data), dim=1)
+                data + self.img_prompt.expand(data.shape[0], -1, -1).view(
+                    data.shape[0],data.shape[1],data.shape[2],data.shape[3])
             )
         elif dtype == 'text':
             feat = self.openclip.encode_text(data)
         return feat
-
-    # def training_step(self):
-    #     train_batch = self.get_fake_batch()
-    #     img_tensor, txt_tensor, neg_feat = train_batch[:3]
-    #     img_feat = self.forward(img_tensor, dtype='image')
-    #     txt_feat = self.forward(txt_tensor, dtype='text')
-    #     loss = self.triplet_loss(img_feat, txt_feat, neg_feat)
-    #     print(loss)
-
-    # def testing_step(self):
-    #     test_batch = self.get_fake_batch()
-    #     img_tensor, txt_tensor = batch[:2]
-    #     image_features = self.forward(img_tensor, dtype='image')
-    #     text_features = self.forward(txt_tensor, dtype='text')
-    #     image_features /= image_features.norm(dim=-1, keepdim=True)
-    #     text_features /= text_features.norm(dim=-1, keepdim=True)
-    #     text_probs = (100.0 * image_features @ text_features.T).softmax(dim=-1)
-    #     print(text_probs)
-    
-    # def get_fake_batch(self):
-    #     image_name = "dog.png"
-    #     text_list = ["a diagram", "a dog", "a cat"]
-    #     image = self.preprocess(Image.open(image_name)).unsqueeze(0)
-    #     text = self.tokenizer(text_list)
-    #     neg_feat = torch.zeros(1, 512, dtype=torch.float32)
-    #     return [image, text, neg_feat]

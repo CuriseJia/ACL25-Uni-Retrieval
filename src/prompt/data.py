@@ -40,19 +40,18 @@ class SixModalDataset(Dataset):
 
 
 class OriginalLongDataset(Dataset):
-    def __init__(self, json_path, transform):
+    def __init__(self, json_path, image_transform):
         self.dataset = json.load(open(json_path,'r'))
         self.convert = get_classname()
-        self.transform = transform
+        self.image_transform = image_transform
     
     def __len__(self):
         return len(self.dataset)
     
     def __getitem__(self, index):
         original_image_path = '/public/home/jiayanhao/imagenet/train/' + self.dataset[index]['image_path']
-        image = np.array(Image.open(original_image_path).convert('RGB'))
+        image = self.image_transform(Image.open(original_image_path).convert('RGB'))
         long_caption = self.dataset[index]['caption']
-        negative_feature = torch.zeros(1, 512, dtype=torch.float32)
-        # classname = self.convert[self.dataset[1000]['image_path'].split('/')[0]]
+        negative_feature = torch.zeros(512, dtype=torch.float32)
 
-        return image, long_caption, negative_feature
+        return [image, long_caption, negative_feature]
