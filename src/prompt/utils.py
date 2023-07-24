@@ -1,6 +1,7 @@
 import os
 import random
 import numpy as np
+import matplotlib.pyplot as plt
 
 import torch
 import torch.distributed as dist
@@ -77,3 +78,11 @@ def get_rank():
 
 def is_main_process():
     return get_rank() == 0
+
+
+def save_loss(loss, epochs):
+    plt.plot(epochs, loss, linewidth=1, color="orange", marker="o",label="Mean value")
+    plt.legend(["Loss"],loc="upper left")
+    plt.xlabel('Epochs')
+    plt.ylabel('Loss')
+    plt.savefig("/public/home/jiayanhao/SMR/loss.jpg")
