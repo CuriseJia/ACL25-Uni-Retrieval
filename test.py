@@ -105,8 +105,8 @@ def eval(args, model, dataloader):
         image_feature = model(image, dtype='image')
         text_feature = model(long_caption, dtype='text')
 
-        image_feature = F.normalize(image_feature, dim=-1)
-        text_feature = F.normalize(text_feature, dim=-1)
+        image_feature /= F.normalize(image_feature, dim=-1)
+        text_feature /= F.normalize(text_feature, dim=-1)
 
         prob = torch.softmax((100.0 * image_feature @ text_feature.T), dim=-1)
 
@@ -124,21 +124,21 @@ def eval(args, model, dataloader):
 
 
 if __name__ == "__main__":
-    args = parse_args()
-    # init_distributed_mode(args)
-    setup_seed(args.seed)
-    device = torch.device(args.device)
+    # args = parse_args()
+    # # init_distributed_mode(args)
+    # setup_seed(args.seed)
+    # device = torch.device(args.device)
 
-    model = ShallowPromptTransformer(args)
-    model = model.to(device)
+    # model = ShallowPromptTransformer(args)
+    # model = model.to(device)
     # model_without_ddp = model
 
     # train_dataset = OriginalLongDataset(args.train_json_path, model.pre_process_train, 'train')
-    test_dataset = OriginalLongDataset(args.test_json_path, model.pre_process_val, 'test')
+    # test_dataset = OriginalLongDataset(args.val_json_path, model.pre_process_val, 'test')
 
-    optimizer = torch.optim.Adam([
-            {'params': model.openclip.parameters(), 'lr': args.clip_ln_lr},
-            {'params': [model.img_prompt], 'lr': args.prompt_lr}])
+    # optimizer = torch.optim.Adam([
+    #         {'params': model.openclip.parameters(), 'lr': args.clip_ln_lr},
+    #         {'params': [model.img_prompt], 'lr': args.prompt_lr}])
 
 
     # train_loader = DataLoader(dataset=train_dataset, 
@@ -149,18 +149,19 @@ if __name__ == "__main__":
     #                         shuffle=False,
     #                         drop_last=True
     #                         )
-    test_loader = DataLoader(dataset=test_dataset, 
-                            batch_size=args.batch_size,
-                            num_workers=args.num_workers,
-                            pin_memory=True,
-                            prefetch_factor=16,
-                            shuffle=False,
-                            drop_last=True
-                            )
+    # test_loader = DataLoader(dataset=test_dataset, 
+    #                         batch_size=args.batch_size,
+    #                         num_workers=args.num_workers,
+    #                         pin_memory=True,
+    #                         prefetch_factor=16,
+    #                         shuffle=False,
+    #                         drop_last=True
+    #                         )
 
 
     # loss, epochs = train(args, model, device, train_loader, optimizer)
-
-    # save_loss(loss, epochs)
+    loss= []
+    epochs=[]
+    save_loss(loss, epochs)
+    # eval(args, model, test_loader)
     
-    eval(args, model, test_loader)

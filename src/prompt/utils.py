@@ -80,9 +80,9 @@ def is_main_process():
     return get_rank() == 0
 
 
-def save_loss(loss, epochs):
+def save_loss(loss, epochs, out_path="loss.jpg"):
     plt.plot(epochs, loss, linewidth=1, color="orange", marker="o",label="Mean value")
-    plt.legend(["Loss"],loc="upper left")
+    plt.legend(["Loss"],loc="upper right")
     plt.xlabel('Epochs')
     plt.ylabel('Loss')
-    plt.savefig("/public/home/jiayanhao/SMR/loss.jpg")
+    plt.savefig(out_path)
