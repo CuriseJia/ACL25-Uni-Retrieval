@@ -40,18 +40,25 @@ class SixModalDataset(Dataset):
 
 
 class OriginalLongDataset(Dataset):
-    def __init__(self, json_path, image_transform):
+    def __init__(self, json_path, image_transform, mode='train'):
         self.dataset = json.load(open(json_path,'r'))
         self.convert = get_classname()
         self.image_transform = image_transform
+        self.mode = mode
     
     def __len__(self):
         return len(self.dataset)
     
     def __getitem__(self, index):
-        original_image_path = '/public/home/jiayanhao/imagenet/train/' + self.dataset[index]['image_path']
-        image = self.image_transform(Image.open(original_image_path).convert('RGB'))
         long_caption = self.dataset[index]['caption']
-        negative_feature = torch.zeros(512, dtype=torch.float32)
 
-        return [image, long_caption, negative_feature]
+        if self.mode == 'train':
+            original_image_path = '/public/home/jiayanhao/imagenet/train/' + self.dataset[index]['image_path']
+            original_image = self.image_transform(Image.open(original_image_path).convert('RGB'))
+            negative_image_path = '/public/home/jiayanhao/imagenet/train/' + self.dataset[np.random.randint(1, len(self.dataset))]['image_path']
+            negative_image = self.image_transform(Image.open(negative_image_path).convert('RGB'))
+            return [original_image, long_caption, negative_image]
+        else:
+            original_image_path = '/public/home/jiayanhao/imagenet/val/' + self.dataset[index]['image_path']
+            original_image = self.image_transform(Image.open(original_image_path).convert('RGB'))
+            return [original_image, long_caption]

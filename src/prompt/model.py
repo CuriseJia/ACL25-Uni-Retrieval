@@ -32,7 +32,7 @@ class ShallowPromptTransformer(nn.Module):
         # loss
         self.triplet_loss = nn.TripletMarginWithDistanceLoss(
             distance_function=lambda x, y: 1.0-F.cosine_similarity(x, y), 
-            margin=0.2)
+            margin=1)
 
 
     def forward(self, data, dtype='image'):
