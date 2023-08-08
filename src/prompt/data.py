@@ -66,8 +66,9 @@ class Image2TextDataset(Dataset):
 
 
 class Image2ImageDataset(Dataset):
-    def __init__(self, root_path, json_path, image_transform, mode='train'):
+    def __init__(self, root_path, other_path, json_path, image_transform, mode='train'):
         self.root_path = root_path
+        self.other_path = other_path
         self.dataset = json.load(open(json_path,'r'))
         self.convert = get_classname()
         self.image_transform = image_transform
@@ -79,15 +80,26 @@ class Image2ImageDataset(Dataset):
     def __getitem__(self, index):
 
         if self.mode == 'train':
-            original_image_path = os.path.join(self.root_path, self.dataset[index]['image_path'])
+            original_image_path = os.path.join(self.root_path, self.dataset[index]['origin_image'])
             original_image = self.image_transform(Image.open(original_image_path).convert('RGB'))
-            # TODO:
-            #   add mosaic image
-
-            negative_image_path = os.path.join(self.root_path, self.dataset[np.random.randint(1, len(self.dataset))]['image_path'])
+            classname = os.path.join(self.root_path, self.dataset[index]['classname'])
+            
+            other_image_path = os.path.join(self.other_path, self.dataset[index]['sketch_image'])
+            other_image = self.image_transform(Image.open(other_image_path).convert('RGB'))
+            
+            num = np.random.randint(1, len(self.dataset))
+            negative_class = os.path.join(self.other_path, self.dataset[num]['classname'])
+            while negative_class == classname:
+                num = np.random.randint(1, len(self.dataset))
+                negative_class = os.path.join(self.other_path, self.dataset[num]['classname'])
+            
+            negative_image_path = os.path.join(self.other_path, self.dataset[num]['sketch_image'])
             negative_image = self.image_transform(Image.open(negative_image_path).convert('RGB'))
-            return [original_image, , negative_image]
+
+            return [original_image, other_image, negative_image]
         else:
-            original_image_path = os.path.join(self.root_path, self.dataset[index]['image_path'])
+            original_image_path = os.path.join(self.root_path, self.dataset[index]['sketch_image'])
             original_image = self.image_transform(Image.open(original_image_path).convert('RGB'))
-            return [original_image, ]
+            other_image_path = os.path.join(self.other_path, self.dataset[index]['image_path'])
+            other_image = self.image_transform(Image.open(other_image_path).convert('RGB'))
+            return [original_image, other_image]
