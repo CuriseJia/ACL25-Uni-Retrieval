@@ -111,7 +111,6 @@ if __name__ == "__main__":
                             shuffle=False,
                             drop_last=True
                             )
-
     
 
     train(args, model, device, train_loader, optimizer)

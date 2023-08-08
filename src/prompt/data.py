@@ -6,6 +6,7 @@ from PIL import Image
 
 from torch.utils.data import Dataset, DataLoader, SubsetRandomSampler, IterableDataset, get_worker_info
 from torch.utils.data.distributed import DistributedSampler
+from prefetch_generator import BackgroundGenerator
 import torch
 
 
@@ -18,25 +19,6 @@ def get_classname():
         classname = line.split(' ')[1].strip('\n')
         convert[folder]=classname
     return convert
-
-
-# class SixModalDataset(Dataset):
-#     def __init__(self, json_path, modal):
-#         self.dataset = json.load(open(json_path,'r'))
-#         self.convert = get_classname()
-
-    
-#     def __len__(self):
-#         len = 0
-#         for item in self.convert.values():
-#             length += len(self.dataset['original'][item])
-#         return len
-    
-#     def __getitem__(self, index):
-#         original_image_path = '/public/home/jiayanhao/imagenet/train' + self.dataset['original'][index]['image']
-#         image = Image.open(original_image_path).convert('RGB')
-
-#         return image
 
 
 class Image2TextDataset(Dataset):
@@ -103,3 +85,36 @@ class Image2ImageDataset(Dataset):
             other_image_path = os.path.join(self.other_path, self.dataset[index]['image_path'])
             other_image = self.image_transform(Image.open(other_image_path).convert('RGB'))
             return [original_image, other_image]
+        
+
+class DataLoaderX(DataLoader):
+    def __iter__(self):
+        return BackgroundGenerator(super().__iter__())
+    
+
+class data_prefetcher():
+    def __init__(self, loader):
+        #loader 1：real
+        #loader 2：fake
+        self.stream = torch.cuda.Stream()
+        self.loader = iter(loader)
+        self.preload()
+ 
+ 
+    def preload(self):
+        try:
+            self.oimage = next(self.loader)
+        except StopIteration:
+            self.oimage = None
+            return
+        with torch.cuda.stream(self.stream):
+            self.oimage = [self.oimage[0].cuda(non_blocking=True).float(),
+                        self.oimage[1].cuda(non_blocking=True).float(),
+                        self.oimage[2].cuda(non_blocking=True).float()]
+ 
+
+    def next(self):
+        torch.cuda.current_stream().wait_stream(self.stream)
+        oimage = self.oimage
+        self.preload()
+        return oimage

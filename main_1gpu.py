@@ -7,7 +7,7 @@ import torch.nn.functional as F
 from torch.utils.data import DataLoader
 
 from src.prompt.model import ShallowPromptTransformer
-from src.prompt.data import Image2ImageDataset, Image2TextDataset
+from src.prompt.data import Image2ImageDataset, Image2TextDataset, DataLoaderX, data_prefetcher
 from src.prompt.utils import init_distributed_mode, setup_seed, get_rank, get_world_size, is_main_process, save_loss, getR1Accuary
 
 def parse_args():
@@ -15,13 +15,14 @@ def parse_args():
 
     # project settings
     parser.add_argument('--output_dir', default='output/')
-    parser.add_argument('--resume', default='/public/home/jiayanhao/SMR/output/epoch_mar1_29.pth', type=str, help='load checkpoints from given path')
-    parser.add_argument('--device', default='cuda:1')
+    parser.add_argument('--out_path', default='origin-sketch-loss.jpg')
+    parser.add_argument('--resume', default='/public/home/jiayanhao/SMR/output/epoch_i2t_29.pth', type=str, help='load checkpoints from given path')
+    parser.add_argument('--device', default='cuda:0')
     parser.add_argument('--seed', default=42, type=int)
     parser.add_argument('--world_size', default=1, type=int, help='number of distributed processes')
     parser.add_argument('--dist_url', default='env://', help='url used to set up distributed training')
     parser.add_argument('--distributed', default=False, type=bool)
-    parser.add_argument('--num_workers', default=4, type=int)
+    parser.add_argument('--num_workers', default=10, type=int)
     parser.add_argument("--local_rank", type=int)
 
     # data settings
@@ -32,9 +33,9 @@ def parse_args():
     parser.add_argument("--test_art_dataset_path", type=str, default='/public/home/jiayanhao/imagenet/imagenet-sketch/')
     parser.add_argument("--train_json_path", type=str, default='/public/home/jiayanhao/imagenet/200-original-sketch.json')
     parser.add_argument("--test_json_path", type=str, default='/public/home/jiayanhao/imagenet/200-original-long-val.json')
-    parser.add_argument("--train_batch_size", type=int, default=128)
+    parser.add_argument("--train_batch_size", type=int, default=64)
     parser.add_argument("--test_batch_size", type=int, default=64)
-    parser.add_argument("--epochs", type=int, default=100)
+    parser.add_argument("--epochs", type=int, default=25)
 
     # model settings
     parser.add_argument('--prompt', type=str, default='ShallowPrompt', help='ShallowPrompt or DeepPrompt')
@@ -50,7 +51,7 @@ def parse_args():
 
 
 
-def train(args, model, device, dataloader, optimizer):
+def train(args, model, device, datafetcher, optimizer):
     model.train()
 
     best_loss = 10000000
@@ -63,7 +64,10 @@ def train(args, model, device, dataloader, optimizer):
         for epoch in tqdm(range(args.epochs)):
             temp_loss = []
 
-            for data in enumerate(tqdm(dataloader)):
+            data = datafetcher.next()
+            # for data in enumerate(tqdm(dataloader)):
+            while data is not None:
+                data = datafetcher.next()
                 image = data[1][0].to(device, non_blocking=True)
                 long_caption = model.tokenizer(data[1][1]).to(device, non_blocking=True)
                 negative_image = data[1][2].to(device, non_blocking=True)
@@ -102,14 +106,22 @@ def train(args, model, device, dataloader, optimizer):
         for epoch in tqdm(range(args.epochs)):
             temp_loss = []
 
-            for data in enumerate(tqdm(dataloader)):
-                original_image = data[1][0].to(device, non_blocking=True)
-                retrival_image = data[1][1].to(device, non_blocking=True)
-                negative_image = data[1][2].to(device, non_blocking=True)
+            data = datafetcher.next()
+            # for data in enumerate(tqdm(dataloader)):
+            while data is not None:
+                data= datafetcher.next()
 
-                original_feature = model(original_image, dtype='image')
-                retrival_feature = model(retrival_image, dtype='image')
-                negative_feature = model(negative_image, dtype='image')
+                original_feature = model(data[0], dtype='image')
+                retrival_feature = model(data[1], dtype='image')
+                negative_feature = model(data[2], dtype='image')
+
+                # original_image = data[1][0].to(device, non_blocking=True)
+                # retrival_image = data[1][1].to(device, non_blocking=True)
+                # negative_image = data[1][2].to(device, non_blocking=True)
+
+                # original_feature = model(original_image, dtype='image')
+                # retrival_feature = model(retrival_image, dtype='image')
+                # negative_feature = model(negative_image, dtype='image')
 
                 loss = model.triplet_loss(original_feature, retrival_feature, negative_feature)
 
@@ -129,7 +141,7 @@ def train(args, model, device, dataloader, optimizer):
             if res<best_loss:
                 best_loss = res
                 save_obj = model.state_dict()
-                torch.save(save_obj, os.path.join(args.output_dir, 'epoch_mar1_{}.pth'.format(epoch)))
+                torch.save(save_obj, os.path.join(args.output_dir, 'epoch_i2s_{}.pth'.format(epoch)))
                 count = 0
             else:
                 count +=1
@@ -199,6 +211,7 @@ if __name__ == "__main__":
                             shuffle=False,
                             drop_last=True
                             )
+    train_prefetcher = data_prefetcher(train_loader)
     # test_loader = DataLoader(dataset=test_dataset, 
     #                         batch_size=args.test_batch_size,
     #                         num_workers=args.num_workers,
@@ -211,8 +224,8 @@ if __name__ == "__main__":
     
 
 
-    loss, epochs = train(args, model, device, train_loader, optimizer)
+    loss, epochs = train(args, model, device, train_prefetcher, optimizer)
 
-    save_loss(loss, epochs)
+    save_loss(loss, epochs, args.out_path)
     
     # eval(args, model, test_loader)
