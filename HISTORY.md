@@ -1,3 +1,7 @@
+## 0.1.3
+
+* add data_prefetcher to accelerate dataloader
+
 ## 0.1.2
 
 * add negativate_image into dataloader
