@@ -86,3 +86,14 @@ def save_loss(loss, epochs, out_path="loss.jpg"):
     plt.xlabel('Epochs')
     plt.ylabel('Loss')
     plt.savefig(out_path)
+
+
+def getR1Accuary(prob):
+    temp = prob.detach().cpu().numpy()
+    temp = np.argsort(temp, axis=1)
+    count = 0
+    for i in range(prob.shape[0]):
+        if temp[i][prob.shape[1]-1] == i:
+            count+=1
+    acc = count/prob.shape[0]
+    return acc

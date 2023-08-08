@@ -38,9 +38,6 @@ class ShallowPromptTransformer(nn.Module):
     def forward(self, data, dtype='image'):
         if dtype == 'image': 
             feat = self.openclip.encode_image(
-                # torch.cat((data[:, :1, :], self.img_prompt.expand(data.shape[0], -1, -1), data[:, 1:,]), dim=1)
-                # torch.cat((self.img_prompt.expand(data.shape[0], -1, -1).view(
-                #     data.shape[0],data.shape[1],data.shape[2],data.shape[3]), data), dim=1)
                 data + self.img_prompt.expand(data.shape[0], -1, -1).view(
                     data.shape[0],data.shape[1],data.shape[2],data.shape[3])
             )

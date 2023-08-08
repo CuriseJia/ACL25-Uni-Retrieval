@@ -8,14 +8,14 @@ from torch.utils.data import DataLoader
 
 from src.prompt.model import ShallowPromptTransformer
 from src.prompt.data import Image2ImageDataset, Image2TextDataset
-from src.prompt.utils import init_distributed_mode, setup_seed, get_rank, get_world_size, is_main_process, save_loss
+from src.prompt.utils import init_distributed_mode, setup_seed, get_rank, get_world_size, is_main_process, save_loss, getR1Accuary
 
 def parse_args():
     parser = argparse.ArgumentParser(description='Parse args for SixModal Prompt Tuning.')
 
     # project settings
     parser.add_argument('--output_dir', default='output/')
-    parser.add_argument('--resume', default='output/best.pth', type=str, help='load checkpoints from given path')
+    parser.add_argument('--resume', default='/public/home/jiayanhao/SMR/output/epoch_mar1_29.pth', type=str, help='load checkpoints from given path')
     parser.add_argument('--device', default='cuda:1')
     parser.add_argument('--seed', default=42, type=int)
     parser.add_argument('--world_size', default=1, type=int, help='number of distributed processes')
@@ -25,12 +25,15 @@ def parse_args():
     parser.add_argument("--local_rank", type=int)
 
     # data settings
-    parser.add_argument("--type", type=str, default='image2text', help='choose train image2text or image2image.')
-    parser.add_argument("--train_dataset_path", type=str, default='/public/home/jiayanhao/imagenet/train/')
-    parser.add_argument("--test_dataset_path", type=str, default='/public/home/jiayanhao/imagenet/val/')
-    parser.add_argument("--train_json_path", type=str, default='/public/home/jiayanhao/imagenet/200-original-long.json')
+    parser.add_argument("--type", type=str, default='image2image', help='choose train image2text or image2image.')
+    parser.add_argument("--train_ori_dataset_path", type=str, default='/public/home/jiayanhao/imagenet/train/')
+    parser.add_argument("--train_art_dataset_path", type=str, default='/public/home/jiayanhao/imagenet/imagenet-sketch/')
+    parser.add_argument("--test_ori_dataset_path", type=str, default='/public/home/jiayanhao/imagenet/val/')
+    parser.add_argument("--test_art_dataset_path", type=str, default='/public/home/jiayanhao/imagenet/imagenet-sketch/')
+    parser.add_argument("--train_json_path", type=str, default='/public/home/jiayanhao/imagenet/200-original-sketch.json')
     parser.add_argument("--test_json_path", type=str, default='/public/home/jiayanhao/imagenet/200-original-long-val.json')
-    parser.add_argument("--batch_size", type=int, default=256)
+    parser.add_argument("--train_batch_size", type=int, default=128)
+    parser.add_argument("--test_batch_size", type=int, default=64)
     parser.add_argument("--epochs", type=int, default=100)
 
     # model settings
@@ -152,7 +155,9 @@ def eval(args, model, dataloader):
 
         prob = torch.softmax((100.0 * image_feature @ text_feature.T), dim=-1)
 
-        print(prob)
+        acc = getR1Accuary(prob)
+
+        print(acc)
 
      # def testing_step(self):
     #     test_batch = self.get_fake_batch()
@@ -173,36 +178,41 @@ if __name__ == "__main__":
 
     model = ShallowPromptTransformer(args)
     model = model.to(device)
-    model = model.load_state_dict(torch.load(args.resume))
+    model.load_state_dict(torch.load(args.resume))
 
-    # train_dataset = Image2TextDataset(args.train_dataset_path, args.train_json_path, model.pre_process_train, 'train')
-    test_dataset = Image2TextDataset(args.test_dataset_path, args.test_json_path, model.pre_process_val, 'test')
+    # train_dataset = Image2TextDataset(args.train_ori_dataset_path,  args.train_json_path, model.pre_process_train, 'train')
+    # test_dataset = Image2TextDataset(args.test_ori_dataset_path, args.test_json_path, model.pre_process_val, 'test')
+
+    train_dataset = Image2ImageDataset(args.train_ori_dataset_path, args.train_art_dataset_path, args.train_json_path, model.pre_process_train, 'train')
+    # test_dataset = Image2ImageDataset(args.test_ori_dataset_path, args.test_art_dataset_path, args.test_json_path, model.pre_process_val, 'test')
 
     optimizer = torch.optim.Adam([
             {'params': model.openclip.parameters(), 'lr': args.clip_ln_lr},
             {'params': [model.img_prompt], 'lr': args.prompt_lr}])
 
 
-    # train_loader = DataLoader(dataset=train_dataset, 
-    #                         batch_size=args.batch_size,
-    #                         num_workers=args.num_workers,
-    #                         pin_memory=True,
-    #                         prefetch_factor=16,
-    #                         shuffle=False,
-    #                         drop_last=True
-    #                         )
-    test_loader = DataLoader(dataset=test_dataset, 
-                            batch_size=args.batch_size,
+    train_loader = DataLoader(dataset=train_dataset, 
+                            batch_size=args.train_batch_size,
                             num_workers=args.num_workers,
                             pin_memory=True,
                             prefetch_factor=16,
                             shuffle=False,
                             drop_last=True
                             )
+    # test_loader = DataLoader(dataset=test_dataset, 
+    #                         batch_size=args.test_batch_size,
+    #                         num_workers=args.num_workers,
+    #                         pin_memory=True,
+    #                         prefetch_factor=16,
+    #                         shuffle=False,
+    #                         drop_last=True
+    #                         )
 
-
-    # loss, epochs = train(args, model, device, train_loader, optimizer)
-
-    # save_loss(loss, epochs)
     
-    eval(args, model, test_loader)
+
+
+    loss, epochs = train(args, model, device, train_loader, optimizer)
+
+    save_loss(loss, epochs)
+    
+    # eval(args, model, test_loader)
