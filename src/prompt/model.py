@@ -22,9 +22,9 @@ class ShallowPromptTransformer(nn.Module):
         super(ShallowPromptTransformer, self).__init__()
         self.model_args = model_args
         self.openclip, self.pre_process_train, self.pre_process_val = open_clip.create_model_and_transforms(
-            model_name='ViT-B-32', pretrained='laion2b_s34b_b79k', device=tgt_device,
+            model_name='ViT-L-14', pretrained='laion2b_s32b_b82k', device=tgt_device,
         )
-        self.tokenizer = open_clip.get_tokenizer('ViT-B-32')
+        self.tokenizer = open_clip.get_tokenizer('ViT-L-14')
         self.openclip.apply(freeze_all_but_bn)
         # Prompt Token
         self.img_prompt = nn.Parameter(torch.randn(
@@ -44,3 +44,11 @@ class ShallowPromptTransformer(nn.Module):
         elif dtype == 'text':
             feat = self.openclip.encode_text(data)
         return feat
+    
+
+    def get_loss(self, image_feature, pair_feature, negative_feature, optimizer):
+        loss = self.triplet_loss(image_feature, pair_feature, negative_feature)
+        optimizer.zero_grad()
+        loss.backward()
+        optimizer.step()
+        return loss.detach().cpu().numpy()

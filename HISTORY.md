@@ -1,3 +1,9 @@
+## 0.1.4
+
+* add image2image test type
+* split dataset into train and test
+* add ddp train framework
+
 ## 0.1.3
 
 * add data_prefetcher to accelerate dataloader
