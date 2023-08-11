@@ -1,6 +1,7 @@
 import os
 import random
 import numpy as np
+import json
 import matplotlib.pyplot as plt
 
 import torch
@@ -88,7 +89,7 @@ def save_loss(loss, epochs, out_path="loss.jpg"):
     plt.savefig(out_path)
 
 
-def getR1Accuary(prob):
+def getI2TR1Accuary(prob):
     temp = prob.detach().cpu().numpy()
     temp = np.argsort(temp, axis=1)
     count = 0
@@ -97,3 +98,21 @@ def getR1Accuary(prob):
             count+=1
     acc = count/prob.shape[0]
     return acc
+
+def getI2IR1Accuary(prob, oric, othc):
+    temp = prob.detach().cpu().numpy()
+    temp = np.argsort(temp, axis=1)
+    count = 0
+    for i in range(prob.shape[0]):
+        if temp[i][prob.shape[1]-1] == i:
+            count+=1
+    acc = count/prob.shape[0]
+    return acc
+
+
+def LoadDatasetIntoMemory(ori_dataset_path, other_dataset_path, ori_json, other_json):
+    # json.load(open('ori_json'))
+
+    ori_dict={}
+    other_dict={}
+    return ori_dict, other_dict
