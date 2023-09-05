@@ -25,7 +25,8 @@
 # project files
 .idea/
 .vscode/
-*/__pycache__
+*__pycache__*
+*.pyc
 
 # OS generated files
 **/*.app

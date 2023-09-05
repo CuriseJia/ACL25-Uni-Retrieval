@@ -8,17 +8,17 @@ import torch.nn.functional as F
 from torch.utils.data import DataLoader
 
 from src.prompt.model import ShallowPromptTransformer
-from src.prompt.data import I2TTrainDataset, I2TTestDataset, I2ITrainDataset, I2ITestDataset, DataLoaderX, DataPrefetcher
+from src.prompt.data import I2TTrainDataset, I2TTestDataset, I2ITrainDataset, I2ITestDataset, I2MTrainDataset, I2MTestDataset, DataLoaderX, DataPrefetcher
 from src.prompt.utils import init_distributed_mode, setup_seed, LoadDatasetIntoMemory, save_loss, getI2TR1Accuary, getI2IR1Accuary
 
 def parse_args():
     parser = argparse.ArgumentParser(description='Parse args for SixModal Prompt Tuning.')
 
     # project settings
-    parser.add_argument('--output_dir', default='output/')
-    parser.add_argument('--out_path', default='origin-sketch-loss.jpg')
-    parser.add_argument('--resume', default='/public/home/jiayanhao/SMR/output/epoch_i2s_0_10_1.pth', type=str, help='load checkpoints from given path')
-    parser.add_argument('--device', default='cuda:0')
+    parser.add_argument('--output_dir', default='/public/home/jiayanhao/SMR/output/')
+    parser.add_argument('--out_path', default='origin-mosaic-loss.jpg')
+    parser.add_argument('--resume', default='/public/home/jiayanhao/SMR/output/i2t_after_i2m_epoch14.pth', type=str, help='load checkpoints from given path')
+    parser.add_argument('--device', default='cuda:3')
     parser.add_argument('--seed', default=42, type=int)
     parser.add_argument('--world_size', default=1, type=int, help='number of distributed processes')
     parser.add_argument('--dist_url', default='env://', help='url used to set up distributed training')
@@ -27,17 +27,17 @@ def parse_args():
     parser.add_argument("--local_rank", type=int)
 
     # data settings
-    parser.add_argument("--type", type=str, default='image2image', help='choose train image2text or image2image.')
+    parser.add_argument("--type", type=str, default='image2text', help='choose train image2text or image2image.')
     parser.add_argument("--train_ori_dataset_path", type=str, default='/public/home/jiayanhao/imagenet/train/')
-    parser.add_argument("--train_art_dataset_path", type=str, default='/public/home/jiayanhao/imagenet/imagenet-sketch/')
-    parser.add_argument("--test_ori_dataset_path", type=str, default='/public/home/jiayanhao/imagenet/train/')
+    parser.add_argument("--train_art_dataset_path", type=str, default='/public/home/jiayanhao/imagenet/imagenet-p/train/')
+    parser.add_argument("--test_ori_dataset_path", type=str, default='/public/home/jiayanhao/imagenet/imagenet-p/val/')
     parser.add_argument("--test_art_dataset_path", type=str, default='/public/home/jiayanhao/imagenet/imagenet-sketch/')
     parser.add_argument("--train_json_path", type=str, default='/public/home/jiayanhao/imagenet/200-original-sketch-0-10.json')
-    parser.add_argument("--test_json_path", type=str, default='/public/home/jiayanhao/imagenet/original-1.json')
+    parser.add_argument("--test_json_path", type=str, default='/public/home/jiayanhao/imagenet/200-original-long-val.json')
     parser.add_argument("--test_other_json_path", type=str, default='/public/home/jiayanhao/imagenet/sketch.json')
     parser.add_argument("--train_batch_size", type=int, default=24)
     parser.add_argument("--test_batch_size", type=int, default=16)
-    parser.add_argument("--epochs", type=int, default=5)
+    parser.add_argument("--epochs", type=int, default=20)
 
     # model settings
     parser.add_argument('--prompt', type=str, default='ShallowPrompt', help='ShallowPrompt or DeepPrompt')
@@ -53,7 +53,7 @@ def parse_args():
 
 
 
-def train(args, model, device, datafetcher, optimizer):
+def train(args, model, device, dataloader, optimizer):
     model.train()
 
     best_loss = 10000000
@@ -66,17 +66,20 @@ def train(args, model, device, datafetcher, optimizer):
         for epoch in tqdm(range(args.epochs)):
             temp_loss = []
 
-            data = datafetcher.next()
-            # for data in enumerate(tqdm(dataloader)):
-            while data is not None:
-                data = datafetcher.next()
+            # data = dataloader.next()
+            for data in enumerate(tqdm(dataloader)):
+            # while data is not None:
+                # image_feature = model(data[0], dtype='image')
+                # text_feature = model(data[1].squeeze(dim=1), dtype='text')
+                # negative_feature = model(data[2], dtype='image')
+
                 image = data[1][0].to(device, non_blocking=True)
                 long_caption = model.tokenizer(data[1][1]).to(device, non_blocking=True)
                 negative_image = data[1][2].to(device, non_blocking=True)
 
                 image_feature = model(image, dtype='image')
-                negative_feature = model(negative_image, dtype='image')
                 text_feature = model(long_caption, dtype='text')
+                negative_feature = model(negative_image, dtype='image')
 
                 loss = model.triplet_loss(image_feature, text_feature, negative_feature)
 
@@ -87,16 +90,18 @@ def train(args, model, device, datafetcher, optimizer):
                 optimizer.zero_grad()
                 loss.backward()
                 optimizer.step()
-            
-            res = round(sum(temp_loss)/len(temp_loss), 6)
-            print("epoch_{} loss is {}.".format(epoch, res))
+                # data = dataloader.next()
+
+            if len(temp_loss)!=0:
+                res = round(sum(temp_loss)/len(temp_loss), 6)
+                print("epoch_{} loss is {}.".format(epoch, res))
             losses.append(res)
             epoches.append(epoch)
 
             if res<best_loss:
                 best_loss = res
                 save_obj = model.state_dict()
-                torch.save(save_obj, os.path.join(args.output_dir, 'epoch_mar1_{}.pth'.format(epoch)))
+                torch.save(save_obj, os.path.join(args.output_dir, 'i2t_after_i2m_epoch{}.pth'.format(epoch)))
                 count = 0
             else:
                 count +=1
@@ -109,7 +114,7 @@ def train(args, model, device, datafetcher, optimizer):
             temp_loss = []
             
             # data = datafetcher.next()
-            for data in enumerate(tqdm(datafetcher)):
+            for data in enumerate(tqdm(dataloader)):
             # while data is not None:
                 # data = datafetcher.next()
 
@@ -125,9 +130,7 @@ def train(args, model, device, datafetcher, optimizer):
                 retrival_feature = model(retrival_image, dtype='image')
                 negative_feature = model(negative_image, dtype='image')
 
-
                 loss = model.get_loss(original_feature, retrival_feature, negative_feature, optimizer)
-                
 
                 temp_loss.append(loss)
 
@@ -137,15 +140,16 @@ def train(args, model, device, datafetcher, optimizer):
                 # loss.backward()
                 # optimizer.step()
             
-            res = round(sum(temp_loss)/len(temp_loss), 6)
-            print("epoch_{} loss is {}.".format(epoch, res))
+            if len(temp_loss)!=0:
+                res = round(sum(temp_loss)/len(temp_loss), 6)
+                print("epoch_{} loss is {}.".format(epoch, res))
             losses.append(res)
             epoches.append(epoch)
 
             if res<best_loss:
                 best_loss = res
                 save_obj = model.state_dict()
-                torch.save(save_obj, os.path.join(args.output_dir, 'epoch_i2s_0_{}.pth'.format(epoch)))
+                torch.save(save_obj, os.path.join(args.output_dir, 'i2m_epoch{}.pth'.format(epoch)))
                 count = 0
             else:
                 count +=1
@@ -191,6 +195,7 @@ def eval(args, model, dataloader):
             prob = torch.softmax((100.0 * original_feature @ retrival_feature.T), dim=-1)
 
             acc = getI2IR1Accuary(prob, ori_classname, retri_classname)
+            # acc = getI2TR1Accuary(prob)
 
             print(acc)
 
@@ -205,11 +210,13 @@ if __name__ == "__main__":
     model = model.to(device)
     model.load_state_dict(torch.load(args.resume))
 
-    # train_dataset = I2TTrainDataset(args.train_ori_dataset_path,  args.train_json_path, model.pre_process_train)
-    # test_dataset = I2TTestDataset(args.test_ori_dataset_path, args.test_json_path, model.pre_process_val)
+    # train_dataset = I2TTrainDataset(args.train_ori_dataset_path,  args.train_json_path, model.pre_process_train, model.tokenizer)
+    test_dataset = I2TTestDataset(args.test_ori_dataset_path, args.test_json_path, model.pre_process_val)
 
-    # train_dataset = I2ITrainDataset(args.train_ori_dataset_path, args.train_art_dataset_path, args.train_json_path, model.pre_process_train)
-    test_dataset = I2ITestDataset(args.test_ori_dataset_path, args.test_art_dataset_path, args.test_json_path, args.test_other_json_path, model.pre_process_val)
+    # test_dataset = I2ITestDataset(args.test_ori_dataset_path, args.test_art_dataset_path, args.test_json_path, args.test_other_json_path, model.pre_process_val)
+
+    # train_dataset = I2MTrainDataset(args.train_ori_dataset_path, args.train_art_dataset_path, args.train_json_path, model.pre_process_train)
+    # test_dataset = I2MTestDataset(args.test_ori_dataset_path, args.test_art_dataset_path, args.test_json_path, model.pre_process_val)
 
     optimizer = torch.optim.Adam([
             {'params': model.openclip.parameters(), 'lr': args.clip_ln_lr},
@@ -229,7 +236,7 @@ if __name__ == "__main__":
                             num_workers=args.num_workers,
                             pin_memory=True,
                             prefetch_factor=16,
-                            shuffle=False,
+                            shuffle=True,
                             drop_last=True
                             )
     # train_prefetcher = DataPrefetcher(train_loader)
