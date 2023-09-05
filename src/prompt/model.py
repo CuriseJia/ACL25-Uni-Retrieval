@@ -52,3 +52,21 @@ class ShallowPromptTransformer(nn.Module):
         loss.backward()
         optimizer.step()
         return loss.detach().cpu().numpy()
+    
+
+class OpenCLIP(nn.Module):
+    def __init__(self, model_args, tgt_device='cpu'):
+        super(OpenCLIP, self).__init__()
+        self.model_args = model_args
+        self.openclip, self.pre_process_train, self.pre_process_val = open_clip.create_model_and_transforms(
+            model_name='ViT-L-14', pretrained='laion2b_s32b_b82k', device=tgt_device,
+        )
+        self.tokenizer = open_clip.get_tokenizer('ViT-L-14')
+        
+
+    def forward(self, data, dtype='image'):
+        if dtype == 'image': 
+            feat = self.openclip.encode_image(data)
+        elif dtype == 'text':
+            feat = self.openclip.encode_text(data)
+        return feat

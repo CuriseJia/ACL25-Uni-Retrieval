@@ -101,10 +101,12 @@ def getI2TR1Accuary(prob):
 
 def getI2IR1Accuary(prob, oric, othc):
     temp = prob.detach().cpu().numpy()
-    temp = np.argsort(temp, axis=1)
+    ind = np.argsort(temp, axis=1)
     count = 0
     for i in range(prob.shape[0]):
-        if temp[i][prob.shape[1]-1] == i:
+        if oric[ind[i][prob.shape[1]-1]] == othc[ind[i][prob.shape[1]-1]]:
+            count+=1
+        elif oric[ind[i][prob.shape[1]-1]] != othc[ind[i][prob.shape[1]-1]] and temp[i][ind[i][prob.shape[1]-1]]<=0.1:
             count+=1
     acc = count/prob.shape[0]
     return acc

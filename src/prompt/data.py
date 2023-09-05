@@ -23,11 +23,12 @@ def get_classname():
 
 
 class I2TTrainDataset(Dataset):
-    def __init__(self, root_path, json_path, image_transform):
+    def __init__(self, root_path, json_path, image_transform, tokenizer):
         self.root_path = root_path
         self.dataset = json.load(open(json_path,'r'))
-        self.convert = get_classname()
+        # self.convert = get_classname()
         self.image_transform = image_transform
+        # self.tokenizer = tokenizer
     
     def __len__(self):
         return len(self.dataset)
@@ -35,9 +36,9 @@ class I2TTrainDataset(Dataset):
     def __getitem__(self, index):
         long_caption = self.dataset[index]['caption']
         original_image_path = os.path.join(self.root_path, self.dataset[index]['image_path'])
-        original_image = self.image_transform(Image.open(original_image_path).convert('RGB'))
+        original_image = self.image_transform(Image.open(original_image_path))
         negative_image_path = os.path.join(self.root_path, self.dataset[np.random.randint(1, len(self.dataset))]['image_path'])
-        negative_image = self.image_transform(Image.open(negative_image_path).convert('RGB'))
+        negative_image = self.image_transform(Image.open(negative_image_path))
         return [original_image, long_caption, negative_image]
 
 
@@ -45,7 +46,6 @@ class I2TTestDataset(Dataset):
     def __init__(self, root_path, json_path, image_transform):
         self.root_path = root_path
         self.dataset = json.load(open(json_path,'r'))
-        self.convert = get_classname()
         self.image_transform = image_transform
     
     def __len__(self):
@@ -73,14 +73,14 @@ class I2ITrainDataset(Dataset):
         classname = os.path.join(self.root_path, self.dataset[index]['classname'])
 
         original_image_path = os.path.join(self.root_path, self.dataset[index]['origin_image'])
-        other_image_path = os.path.join(self.other_path, self.dataset[index]['sketch_image'])
+        other_image_path = os.path.join(self.other_path, self.dataset[index]['art_image'])
         
         num = np.random.randint(1, len(self.dataset))
         negative_class = os.path.join(self.other_path, self.dataset[num]['classname'])
         while negative_class == classname:
             num = np.random.randint(1, len(self.dataset))
             negative_class = os.path.join(self.other_path, self.dataset[num]['classname'])
-        negative_image_path = os.path.join(self.other_path, self.dataset[num]['sketch_image'])
+        negative_image_path = os.path.join(self.other_path, self.dataset[num]['art_image'])
 
         original_image = self.image_transform(Image.open(original_image_path))
         other_image = self.image_transform(Image.open(other_image_path))
@@ -111,6 +111,46 @@ class I2ITestDataset(Dataset):
         return [original_image, other_image, original_classname, other_image_classname]
         
 
+class I2MTrainDataset(Dataset):
+    def __init__(self, root_path, other_path, json_path, image_transform):
+        self.root_path = root_path
+        self.other_path = other_path
+        self.dataset = json.load(open(json_path,'r'))
+        self.image_transform = image_transform
+    
+    def __len__(self):
+        return len(self.dataset)
+    
+    def __getitem__(self, index):
+        original_image_path = os.path.join(self.root_path, self.dataset[index]['image'])
+        other_image_path = os.path.join(self.other_path, self.dataset[index]['image'])
+        negative_image_path = os.path.join(self.root_path, self.dataset[np.random.randint(1, len(self.dataset))]['image'])
+
+        original_image = self.image_transform(Image.open(original_image_path))
+        other_image = self.image_transform(Image.open(other_image_path))
+        negative_image = self.image_transform(Image.open(negative_image_path))
+
+        return [original_image, other_image, negative_image]
+
+
+class I2MTestDataset(Dataset):
+    def __init__(self, root_path, other_path, json_path, image_transform):
+        self.root_path = root_path
+        self.other_path = other_path
+        self.dataset = json.load(open(json_path,'r'))
+        self.image_transform = image_transform
+    
+    def __len__(self):
+        return len(self.dataset)
+    
+    def __getitem__(self, index):
+        original_image_path = os.path.join(self.root_path, self.dataset[index]['image_path'])
+        other_image_path = os.path.join(self.other_path, self.dataset[index]['image_path'])
+        original_image = self.image_transform(Image.open(original_image_path))
+        other_image = self.image_transform(Image.open(other_image_path))
+        return [original_image, other_image]
+
+
 class DataLoaderX(DataLoader):
     def __iter__(self):
         return BackgroundGenerator(super().__iter__())
@@ -134,7 +174,7 @@ class DataPrefetcher():
         with torch.cuda.stream(self.stream):
             temp = []
             for item in range(len(self.data)):
-                temp.append(self.data[item].cuda(non_blocking=True).float())
+                temp.append(self.data[item].cuda(non_blocking=True))
             self.data = temp
  
 
