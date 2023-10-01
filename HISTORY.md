@@ -1,3 +1,7 @@
+## 0.2.0
+* add extract_feature.py
+* add test process
+
 ## 0.1.5
 * update
 

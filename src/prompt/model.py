@@ -55,9 +55,8 @@ class ShallowPromptTransformer(nn.Module):
     
 
 class OpenCLIP(nn.Module):
-    def __init__(self, model_args, tgt_device='cpu'):
+    def __init__(self, tgt_device='cpu'):
         super(OpenCLIP, self).__init__()
-        self.model_args = model_args
         self.openclip, self.pre_process_train, self.pre_process_val = open_clip.create_model_and_transforms(
             model_name='ViT-L-14', pretrained='laion2b_s32b_b82k', device=tgt_device,
         )

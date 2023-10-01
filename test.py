@@ -21,15 +21,15 @@ model = model.to('cuda:1')
 
 # model.load_state_dict(torch.load('/public/home/jiayanhao/SMR/output/i2t_after_i2m_epoch14.pth'))
 
-def params_count(model):
-    """
-    Compute the number of   parameters.
-    Args:
-        model (model): model to count   the number of parameters.
-    """
-    return np.sum([p.numel() for p in   model.parameters()]).item()
+# def params_count(model):
+#     """
+#     Compute the number of   parameters.
+#     Args:
+#         model (model): model to count   the number of parameters.
+#     """
+#     return np.sum([p.numel() for p in   model.parameters()]).item()
 
-print(params_count(model))
+# print(params_count(model))
 
 # ori_image_1 = model.pre_process_val(Image.open('../imagenet/val/n01440764/ILSVRC2012_val_00002138.JPEG')).to('cuda:1', non_blocking=True)
 # ori_image_2 = model.pre_process_val(Image.open('../imagenet/val/n01514859/ILSVRC2012_val_00014879.JPEG')).to('cuda:1', non_blocking=True)
