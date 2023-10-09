@@ -81,6 +81,10 @@ def is_main_process():
     return get_rank() == 0
 
 
+def params_count(model):
+    return np.sum([p.numel() for p in   model.parameters()]).item()
+
+
 def save_loss(loss, epochs, out_path="loss.jpg"):
     plt.plot(epochs, loss, linewidth=1, color="orange", marker="o",label="Mean value")
     plt.legend(["Loss"],loc="upper right")
@@ -110,11 +114,3 @@ def getI2IR1Accuary(prob, oric, othc):
             count+=1
     acc = count/prob.shape[0]
     return acc
-
-
-def LoadDatasetIntoMemory(ori_dataset_path, other_dataset_path, ori_json, other_json):
-    # json.load(open('ori_json'))
-
-    ori_dict={}
-    other_dict={}
-    return ori_dict, other_dict

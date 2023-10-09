@@ -202,7 +202,6 @@ def eval(args, model, dataloader):
 
 if __name__ == "__main__":
     args = parse_args()
-    # init_distributed_mode(args)
     setup_seed(args.seed)
     device = torch.device(args.device)
 
@@ -210,7 +209,7 @@ if __name__ == "__main__":
     model = model.to(device)
     model.load_state_dict(torch.load(args.resume))
 
-    # train_dataset = I2TTrainDataset(args.train_ori_dataset_path,  args.train_json_path, model.pre_process_train, model.tokenizer)
+    train_dataset = I2TTrainDataset(args.train_ori_dataset_path,  args.train_json_path, model.pre_process_train, model.tokenizer)
     test_dataset = I2TTestDataset(args.test_ori_dataset_path, args.test_json_path, model.pre_process_val)
 
     # test_dataset = I2ITestDataset(args.test_ori_dataset_path, args.test_art_dataset_path, args.test_json_path, args.test_other_json_path, model.pre_process_val)
@@ -223,14 +222,14 @@ if __name__ == "__main__":
             {'params': [model.img_prompt], 'lr': args.prompt_lr}])
 
 
-    # train_loader = DataLoader(dataset=train_dataset, 
-    #                         batch_size=args.train_batch_size,
-    #                         num_workers=args.num_workers,
-    #                         pin_memory=True,
-    #                         prefetch_factor=16,
-    #                         shuffle=False,
-    #                         drop_last=True
-    #                         )
+    train_loader = DataLoader(dataset=train_dataset, 
+                            batch_size=args.train_batch_size,
+                            num_workers=args.num_workers,
+                            pin_memory=True,
+                            prefetch_factor=16,
+                            shuffle=False,
+                            drop_last=True
+                            )
     test_loader = DataLoader(dataset=test_dataset, 
                             batch_size=args.test_batch_size,
                             num_workers=args.num_workers,
@@ -239,12 +238,12 @@ if __name__ == "__main__":
                             shuffle=True,
                             drop_last=True
                             )
-    # train_prefetcher = DataPrefetcher(train_loader)
-    # test_prefetcher = DataPrefetcher(test_loader)
+    train_prefetcher = DataPrefetcher(train_loader)
+    test_prefetcher = DataPrefetcher(test_loader)
     
 
-    # loss, epochs = train(args, model, device, train_loader, optimizer)
+    loss, epochs = train(args, model, device, train_loader, optimizer)
 
-    # save_loss(loss, epochs, args.out_path)
+    save_loss(loss, epochs, args.out_path)
     
     eval(args, model, test_loader)
