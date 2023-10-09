@@ -13,7 +13,7 @@ import torch
 
 def get_classname():
     convert={}
-    file = open('/public/home/jiayanhao/imagenet/convert.txt', 'r')
+    file = open('imagenet/convert.txt', 'r')
     lines = file.readlines()
     for line in lines:
         folder = line.split(' ')[0]
@@ -158,8 +158,6 @@ class DataLoaderX(DataLoader):
 
 class DataPrefetcher():
     def __init__(self, loader):
-        #loader 1：real
-        #loader 2：fake
         self.stream = torch.cuda.Stream()
         self.loader = iter(loader)
         self.preload()

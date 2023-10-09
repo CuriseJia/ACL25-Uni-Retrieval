@@ -15,9 +15,9 @@ def parse_args():
     parser = argparse.ArgumentParser(description='Parse args for SixModal Prompt Tuning.')
 
     # project settings
-    parser.add_argument('--output_dir', default='/public/home/jiayanhao/SMR/output/')
+    parser.add_argument('--output_dir', default='SMR/output/')
     parser.add_argument('--out_path', default='origin-mosaic-loss.jpg')
-    parser.add_argument('--resume', default='/public/home/jiayanhao/SMR/output/0-4sketch_epoch2.pth', type=str, help='load checkpoints from given path')
+    parser.add_argument('--resume', default='SMR/output/0-4sketch_epoch2.pth', type=str, help='load checkpoints from given path')
     parser.add_argument('--device', default='cuda:3')
     parser.add_argument('--seed', default=42, type=int)
     parser.add_argument('--world_size', default=1, type=int, help='number of distributed processes')
@@ -28,10 +28,10 @@ def parse_args():
 
     # data settings
     parser.add_argument("--type", type=str, default='image2text', help='choose train image2text or image2image.')
-    parser.add_argument("--test_ori_dataset_path", type=str, default='/public/home/jiayanhao/imagenet/imagenet-p/val/')
-    parser.add_argument("--test_art_dataset_path", type=str, default='/public/home/jiayanhao/imagenet/imagenet-sketch/val/')
-    parser.add_argument("--test_json_path", type=str, default='/public/home/jiayanhao/imagenet/200-original-long-val.json')
-    parser.add_argument("--test_other_json_path", type=str, default='/public/home/jiayanhao/imagenet/sketch.json')
+    parser.add_argument("--test_ori_dataset_path", type=str, default='imagenet/imagenet-p/val/')
+    parser.add_argument("--test_art_dataset_path", type=str, default='imagenet/imagenet-sketch/val/')
+    parser.add_argument("--test_json_path", type=str, default='imagenet/200-original-long-val.json')
+    parser.add_argument("--test_other_json_path", type=str, default='imagenet/sketch.json')
     parser.add_argument("--test_batch_size", type=int, default=16)
 
     args = parser.parse_args()
@@ -80,16 +80,13 @@ def eval(args, model, dataloader):
 
 if __name__ == "__main__":
     args = parse_args()
-    # init_distributed_mode(args)
     setup_seed(args.seed)
     device = torch.device(args.device)
 
     model = OpenCLIP(args)
     model = model.to(device)
-    # model.load_state_dict(torch.load(args.resume))
 
     test_dataset = I2TTestDataset(args.test_ori_dataset_path, args.test_json_path, model.pre_process_val)
-
 
     # test_dataset = I2ITestDataset(args.test_ori_dataset_path, args.test_art_dataset_path, args.test_json_path, args.test_other_json_path, model.pre_process_val)
     

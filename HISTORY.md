@@ -1,3 +1,8 @@
+## 0.2.1
+* add gen_lora.py
+* rewrite gen_colormap.py
+* split test folder
+
 ## 0.2.0
 * add extract_feature.py
 * add test process
