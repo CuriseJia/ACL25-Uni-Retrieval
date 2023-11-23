@@ -7,17 +7,18 @@ import numpy as np
 import torch.nn.functional as F
 from torch.utils.data import DataLoader
 
-from src.prompt.model import OpenCLIP
-from src.prompt.data import I2TTestDataset, I2ITestDataset, I2MTestDataset
-from src.prompt.utils import init_distributed_mode, setup_seed, save_loss, getI2TR1Accuary, getI2IR1Accuary
+from src.models import Uni_Retrieval
+from src.models.data import I2TTestDataset, I2ITestDataset, I2MTestDataset
+from src.models.utils import init_distributed_mode, setup_seed, save_loss, getI2TR1Accuary, getI2IR1Accuary
+
 
 def parse_args():
     parser = argparse.ArgumentParser(description='Parse args for SixModal Prompt Tuning.')
 
     # project settings
-    parser.add_argument('--output_dir', default='SMR/output/')
+    parser.add_argument('--output_dir', default='Uni-Retrieval/output/')
     parser.add_argument('--out_path', default='origin-mosaic-loss.jpg')
-    parser.add_argument('--resume', default='SMR/output/0-4sketch_epoch2.pth', type=str, help='load checkpoints from given path')
+    parser.add_argument('--resume', default='Uni-Retrieval/output/0-4sketch_epoch2.pth', type=str, help='load checkpoints from given path')
     parser.add_argument('--device', default='cuda:3')
     parser.add_argument('--seed', default=42, type=int)
     parser.add_argument('--world_size', default=1, type=int, help='number of distributed processes')
@@ -57,6 +58,7 @@ def eval(args, model, dataloader):
             acc = getI2TR1Accuary(prob)
 
             print(acc)
+            
     else:
         for data in enumerate(dataloader):
             origin_image = data[1][0].to(device, non_blocking=True)
@@ -83,7 +85,7 @@ if __name__ == "__main__":
     setup_seed(args.seed)
     device = torch.device(args.device)
 
-    model = OpenCLIP(args)
+    model = Uni_Retrieval(args)
     model = model.to(device)
 
     test_dataset = I2TTestDataset(args.test_ori_dataset_path, args.test_json_path, model.pre_process_val)

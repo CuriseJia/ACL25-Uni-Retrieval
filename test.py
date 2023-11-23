@@ -1,56 +1,94 @@
 import argparse
-import os.path as osp
 from tqdm import tqdm
 import torch
-import numpy as np
-import torch.nn.functional as F
 from torch.utils.data import DataLoader
-import open_clip
-from PIL import Image
 
-from src.prompt.model import ShallowPromptTransformer, OpenCLIP
-from main_1gpu import parse_args
-# from src.prompt.data import OriginalLongDataset
-# from src.prompt.utils import init_distributed_mode, setup_seed, get_rank, get_world_size, is_main_process, save_loss
+from src.models import Uni_Retrieval
+from src.models import I2ITestDataset, I2ITrainDataset, I2MTestDataset, I2MTrainDataset, I2TTestDataset, I2TTrainDataset
+from src.models import setup_seed, getI2TR1Accuary, getI2IR1Accuary
 
-args = parse_args()
 
-# model = ShallowPromptTransformer(args)
-model = OpenCLIP(args)
-model = model.to('cuda:1')
+def parse_args():
+    parser = argparse.ArgumentParser(description='Parse args for FreeStyleRet-BLIP test on ImageNet-X Dataset.')
 
-# model.load_state_dict(torch.load('/public/home/jiayanhao/SMR/output/i2t_after_i2m_epoch14.pth'))
+    # project settings
+    parser.add_argument('--resume', default='', type=str, help='load model checkpoint from given path')
+    parser.add_argument('--device', default='cuda:0')
+    parser.add_argument('--seed', default=42, type=int)
+    parser.add_argument('--num_workers', default=6, type=int)
+    parser.add_argument('--gram_encoder_path', default='pretrained/vgg_normalised.pth', type=str, help='load vgg from given path')
+    parser.add_argument('--style_prompt_path', default='pretrained/style_cluster.npy', type=str, help='load vgg from given path')
 
-# def params_count(model):
-#     """
-#     Compute the number of   parameters.
-#     Args:
-#         model (model): model to count   the number of parameters.
-#     """
-#     return np.sum([p.numel() for p in   model.parameters()]).item()
+    # data settings
+    parser.add_argument("--type", type=str, default='style2image', help='choose train test2image or style2image.')
+    parser.add_argument("--root_json_path", type=str, default='imagenet/test.json')
+    parser.add_argument("--other_json_path", type=str, default='imagenet/test.json')
+    parser.add_argument("--root_file_path", type=str, default='imagenet/')
+    parser.add_argument("--other_file_path", type=str, default='imagenet-s/')
+    parser.add_argument("--batch_size", type=int, default=16)
 
-# print(params_count(model))
+    # model settings
+    parser.add_argument('--n_banks', type=int, default=4)
+    parser.add_argument('--bank_dim', type=int, default=1024)
+    parser.add_argument('--n_prompts', type=int, default=4)
+    parser.add_argument('--prompt_dim', type=int, default=1024)
 
-# ori_image_1 = model.pre_process_val(Image.open('../imagenet/val/n01440764/ILSVRC2012_val_00002138.JPEG')).to('cuda:1', non_blocking=True)
-# ori_image_2 = model.pre_process_val(Image.open('../imagenet/val/n01514859/ILSVRC2012_val_00014879.JPEG')).to('cuda:1', non_blocking=True)
-# ori_image_3 = model.pre_process_val(Image.open('../imagenet/val/n01631663/ILSVRC2012_val_00007998.JPEG')).to('cuda:1', non_blocking=True)
-# ori_image_4 = model.pre_process_val(Image.open('../imagenet/val/n01742172/ILSVRC2012_val_00018907.JPEG')).to('cuda:1', non_blocking=True)
-# ori_image_5 = model.pre_process_val(Image.open('../imagenet/val/n01855672/ILSVRC2012_val_00018602.JPEG')).to('cuda:1', non_blocking=True)
-# re_image_1 = model.pre_process_val(Image.open('../imagenet/imagenet-sketch/n01440764/sketch_13.JPEG')).to('cuda:1', non_blocking=True)
-# re_image_2 = model.pre_process_val(Image.open('../imagenet/imagenet-sketch/n01514859/sketch_7.JPEG')).to('cuda:1', non_blocking=True)
-# re_image_3 = model.pre_process_val(Image.open('/public/home/jiayanhao/imagenet/imagenet-sketch/n01631663/sketch_6.JPEG')).to('cuda:1', non_blocking=True)
-# re_image_4 = model.pre_process_val(Image.open('/public/home/jiayanhao/imagenet/imagenet-sketch/n01742172/sketch_3.JPEG')).to('cuda:1', non_blocking=True)
-# re_image_5 = model.pre_process_val(Image.open('/public/home/jiayanhao/imagenet/imagenet-sketch/n01855672/sketch_19.JPEG')).to('cuda:1', non_blocking=True)
+    args = parser.parse_args()
+    return args
 
-# ori_image = torch.stack([ori_image_1, ori_image_2, ori_image_3, ori_image_4, ori_image_5],dim=0)
-# re_image = torch.stack([re_image_1, re_image_2, re_image_3, re_image_4, re_image_5],dim=0)
 
-# ori_fea = model(ori_image, dtype='image')
-# re_fea = model(re_image, dtype='image')
+def S2IRetrieval(args, model, ori_images, pair_images):
 
-# ori_fea = F.normalize(ori_fea, dim=-1)
-# re_fea = F.normalize(re_fea, dim=-1)
+    ori_feat = model(ori_images, dtype='image')
+    ske_feat = model(pair_images, dtype='image')  
 
-# prob = torch.softmax((100.0 * ori_fea @ re_fea.T), dim=-1)
+    prob = torch.softmax(ske_feat.view(args.batch_size, -1) @ ori_feat.view(args.batch_size, -1).permute(1, 0), dim=-1)
 
-# print(prob.detach().cpu().numpy())
+    return prob
+
+
+def T2IRetrieval(args, model, ori_images, text_caption):
+    ori_feat = model(ori_images, dtype='image')
+    ske_feat = model(text_caption, dtype='text')
+
+    prob = torch.softmax(ske_feat @ ori_feat.T, dim=-1)
+
+    return prob
+
+
+if __name__ == "__main__":
+    args = parse_args()
+    setup_seed(args.seed)
+    
+    model = Uni_Retrieval(args)
+    model.load_state_dict(torch.load(args.resume))
+    model.eval()
+    model.to(args.device)
+
+    test_dataset = I2TTestDataset(args.root_file_path, args.root_json_path, model.pre_process_val)
+
+    test_loader = DataLoader(dataset=test_dataset, batch_size=args.batch_size, num_workers=args.num_workers,
+                            pin_memory=True, prefetch_factor=16, shuffle=False, drop_last=True)
+
+    r1 = []
+    
+    if args.type == 'text2image':
+        for data in enumerate(tqdm(test_loader)):
+            caption = model.tokenizer(data[1][1]).to(args.device, non_blocking=True)
+            image = data[1][0].to(args.device, non_blocking=True)
+
+            prob = T2IRetrieval(args, model, image, caption)
+
+            r1.append(getI2TR1Accuary(prob))
+
+    else:
+        for data in enumerate(tqdm(test_loader)):
+            origin_image = data[1][0].to(args.device, non_blocking=True)
+            retrival_image = data[1][1].to(args.device, non_blocking=True)
+
+            prob = S2IRetrieval(args, model, origin_image, retrival_image)
+
+            r1.append(getI2TR1Accuary(prob))
+
+    resr1 = sum(r1)/len(r1)
+    print(resr1)

@@ -1,0 +1,9 @@
+[submodule "BLIP"]
+	path = BLIP
+	url = https://github.com/salesforce/BLIP
+[submodule "ImageBind"]
+	path = ImageBind
+	url = https://github.com/facebookresearch/ImageBind
+[submodule "vpt"]
+	path = vpt
+	url = https://github.com/KMnP/vpt

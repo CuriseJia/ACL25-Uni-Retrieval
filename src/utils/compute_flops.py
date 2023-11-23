@@ -1,6 +1,6 @@
 import torch
 import argparse
-from src.prompt.model import OpenCLIP, ShallowPromptTransformer
+from src.models import Uni_Retrieval
 from fvcore.nn import FlopCountAnalysis, parameter_count_table
 
 
@@ -17,7 +17,7 @@ def parse_args():
 args = parse_args()
 # 创建resnet50网络
 # model = OpenCLIP()
-model = ShallowPromptTransformer(args)
+model = Uni_Retrieval(args)
 model = model.to('cuda:5')
 
 # 创建输入网络的tensor
