@@ -7,3 +7,10 @@ huggingface_hub
 sentencepiece
 protobuf<4
 timm
+pandas
+braceexpand
+transformers
+fsspec
+matplotlib
+open_clip_torch
+prefetch_generator
