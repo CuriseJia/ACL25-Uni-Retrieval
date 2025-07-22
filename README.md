@@ -1,6 +1,6 @@
 
 <p align="center">
-    <img src="img/intro1.pdf" width="900" style="margin-bottom: 0.2;"/>
+    <img src="intro1.pdf" width="900" style="margin-bottom: 0.2;"/>
 <p>
 <h2 align="center"> <a href="">Uni-Retrieval: A Multi-Style Retrieval Framework for STEM’s Education</a></h2>
 <h5 align="center"> If you like our project, please give us a star ⭐ on GitHub for latest update.  </h2>
