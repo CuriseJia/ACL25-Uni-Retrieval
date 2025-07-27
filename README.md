@@ -33,13 +33,14 @@
 If you find our paper and code useful in your research, please consider giving a star :star: and citation :pencil:.
 
 ```BibTeX
-@misc{jia2025uniretrievalmultistyleretrievalframework,
-      title={Uni-Retrieval: A Multi-Style Retrieval Framework for STEM's Education}, 
-      author={Yanhao Jia and Xinyi Wu and Hao Li and Qinglin Zhang and Yuxiao Hu and Shuai Zhao and Wenqi Fan},
-      year={2025},
-      eprint={2502.05863},
-      archivePrefix={arXiv},
-      primaryClass={cs.IR},
+@inproceedings{jia-etal-2025-uni,
+    title = "Uni-Retrieval: A Multi-Style Retrieval Framework for {STEM}{'}s Education",
+    author = "Yanhao, Jia and Xinyi, Wu and Hao, Li and Qinglin, Zhang and Yuxiao, Hu and Shuai, Zhao and Wenqi, Fan",
+    booktitle = "Proceedings of the 63rd Annual Meeting of the Association for Computational Linguistics (Volume 1: Long Papers)",
+    year = "2025",
+    publisher = "Association for Computational Linguistics",
+    pages = "10182--10197",
+    ISBN = "979-8-89176-251-0",
 }
 
 @inproceedings{li2024freestyleret,
